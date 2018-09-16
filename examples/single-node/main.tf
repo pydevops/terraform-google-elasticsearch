@@ -1,14 +1,19 @@
+variable "project" {
+  description = "The project to deploy to, if not set the default provider project is used."
+  default     = "pso-victory-cah"
+}
+
 variable "cluster_name" {
-  default = "tf-es-test"
+  default = "es-test"
 }
 
 variable "region" {
-  default = "us-west1"
+  default = "us-central1"
 }
 
 variable "zones" {
   type    = "list"
-  default = ["us-west1-b"]
+  default = ["us-central1-f"]
 }
 
 variable "network_name" {
@@ -17,6 +22,8 @@ variable "network_name" {
 
 provider "google" {
   region = "${var.region}"
+  version     = "~> v1.17.1"
+  project = "${var.project}"
 }
 
 resource "google_compute_network" "default" {
@@ -29,7 +36,7 @@ resource "google_compute_subnetwork" "default" {
   ip_cidr_range            = "10.127.0.0/20"
   network                  = "${google_compute_network.default.self_link}"
   region                   = "${var.region}"
-  private_ip_google_access = true
+  #private_ip_google_access = true
 }
 
 // Consistent internal IP for Elasticsearch node.
@@ -46,8 +53,8 @@ module "es" {
   region        = "${var.region}"
   zones         = ["${var.zones}"]
   network_ip    = "${google_compute_address.es.address}"
-  access_config = []
-  network       = "${google_compute_subnetwork.default.name}"
+  access_config = [{}]
+  network       = "${google_compute_network.default.name}"
   subnetwork    = "${google_compute_subnetwork.default.name}"
 }
 
@@ -61,21 +68,21 @@ module "kibana" {
   disk_size_gb      = 100
   node_tags         = ["${var.cluster_name}"]
   elasticsearch_url = "http://${google_compute_address.es.address}:9200"
-  network           = "${google_compute_subnetwork.default.name}"
+  network           = "${google_compute_network.default.name}"
   subnetwork        = "${google_compute_subnetwork.default.name}"
 }
 
 // Node firewall
 resource "google_compute_firewall" "cluster" {
   name    = "${var.cluster_name}"
-  network = "${google_compute_subnetwork.default.name}"
+  network = "${google_compute_network.default.name}"
 
   allow {
     protocol = "tcp"
     ports    = ["9200", "9300"]
   }
-
-  source_tags = ["${var.cluster_name}"]
+  source_ranges =["0.0.0.0/0"]
+  #source_tags = ["${var.cluster_name}"]
   target_tags = ["${var.cluster_name}"]
 }
 
