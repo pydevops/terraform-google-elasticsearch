@@ -93,3 +93,10 @@ output "kibana_instance" {
 output "kibana" {
   value = "gcloud compute ssh --ssh-flag=\"-A -L :9000:localhost:9000 -L :5601:localhost:5601\" $(terraform output kibana_instance)"
 }
+
+output "es_instance" {
+  value = "${lookup(module.es.instances[0], "instance")}"
+}
+output "es" {
+  value = "gcloud compute ssh --ssh-flag=\"-A -L :9200:localhost:9200 \" $(terraform output es_instance)"
+}
